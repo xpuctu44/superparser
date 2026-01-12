@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Настройки</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Настройки</h1>
+    <nav>
+      <a href="/compare">Сравнение</a>
+      <a href="/stores/view">Магазины</a>
+      <a href="/products">Товары</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <form method="post" action="/settings">
+        <label>Telegram chat ID
+          <input name="telegram_chat_id" value="{{ user.telegram_chat_id or '' }}" />
+        </label>
+        <label>Расписание 1 (cron)
+          <input name="cron_1" placeholder="0 9 * * *" value="{{ user.cron_1 or '' }}" />
+        </label>
+        <label>Расписание 2 (cron)
+          <input name="cron_2" placeholder="0 21 * * *" value="{{ user.cron_2 or '' }}" />
+        </label>
+        <button type="submit">Сохранить</button>
+      </form>
+    </section>
+    <section>
+      <h2>Привязать Telegram</h2>
+      {% if link_url %}
+        <p>Откройте ссылку для привязки:</p>
+        <p>
+          <a href="{{ link_url }}" target="_blank" class="button">Связать с ботом</a>
+        </p>
+      {% else %}
+        <p>Укажите TELEGRAM_BOT_USERNAME и PUBLIC_BASE_URL в .env для генерации ссылки.</p>
+      {% endif %}
+    </section>
+  </main>
+  <script src="/static/main.js"></script>
+</body>
+</html>
+

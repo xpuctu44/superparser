@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>История · {{ group }}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>История группы: {{ group }}</strong>
+      <nav>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card">
+      <div id="legend" class="legend"></div>
+      <svg id="chart" width="1000" height="420" style="max-width:100%;"></svg>
+    </section>
+  </main>
+  <script>
+    const series = {{ series | tojson }};
+    const palette = ['#1976D2','#E53935','#8E24AA','#00897B','#FBC02D','#5E35B1','#6D4C41','#388E3C','#D81B60','#F57C00'];
+    const svg = document.getElementById('chart');
+    const W = svg.clientWidth || 1000;
+    const H = svg.clientHeight || 420;
+    const pad = 48;
+    
+    // flatten all points to compute bounds
+    const all = [];
+    series.forEach(s => (s.points||[]).forEach(p => all.push(p)));
+    if (!all.length) {
+      svg.innerHTML = '<text x="16" y="24" fill="#666" font-size="14">Нет данных</text>';
+    } else {
+      const xs = all.map(p => p.t);
+      const ys = all.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const rangeX = maxX - minX || 1;
+      const rangeY = maxY - minY || 1;
+      const sx = (x) => pad + ((x - minX) / rangeX) * (W - pad*2);
+      const sy = (y) => (H - pad) - ((y - minY) / rangeY) * (H - pad*2);
+      
+      // Background and grid
+      svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafafa" rx="8"/>`;
+      const grid = document.createElementNS('http://www.w3.org/2000/svg','g');
+      grid.setAttribute('stroke', '#e0e0e0');
+      grid.setAttribute('stroke-width', '1');
+      grid.setAttribute('opacity', '0.6');
+      for (let i=0;i<=5;i++){
+        const x = pad + (i/5)*(W-pad*2);
+        const v = document.createElementNS('http://www.w3.org/2000/svg','line');
+        v.setAttribute('x1',x);v.setAttribute('y1',pad);v.setAttribute('x2',x);v.setAttribute('y2',H-pad);
+        grid.appendChild(v);
+        const y = pad + (i/5)*(H-pad*2);
+        const h = document.createElementNS('http://www.w3.org/2000/svg','line');
+        h.setAttribute('x1',pad);h.setAttribute('y1',y);h.setAttribute('x2',W-pad);h.setAttribute('y2',y);
+        grid.appendChild(h);
+      }
+      svg.appendChild(grid);
+      
+      // Legend
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      
+      // Draw lines for each series
+      series.forEach((s, idx) => {
+        const color = palette[idx % palette.length];
+        const pts = (s.points||[]).slice();
+        if (!pts.length) return;
+        const d = pts.map((p,i)=>`${i?'L':'M'}${sx(p.t)},${sy(p.y)}`).join(' ');
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d', d);
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width','3');
+        path.setAttribute('stroke-linecap','round');
+        path.setAttribute('stroke-linejoin','round');
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = len;
+        path.style.strokeDashoffset = len;
+        path.style.transition = 'stroke-dashoffset 1.6s ease';
+        svg.appendChild(path);
+        requestAnimationFrame(()=>{ path.style.strokeDashoffset = '0'; });
+        
+        // markers
+        pts.forEach((p,i)=>{
+          const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+          c.setAttribute('cx', sx(p.t));
+          c.setAttribute('cy', sy(p.y));
+          c.setAttribute('r', '3.5');
+          c.setAttribute('fill', '#fff');
+          c.setAttribute('stroke', color);
+          c.setAttribute('stroke-width', '2');
+          c.style.opacity = '0';
+          c.style.transition = 'opacity .3s ease';
+          svg.appendChild(c);
+          setTimeout(()=>{ c.style.opacity = '1'; }, 1700 + i*30);
+          const title = document.createElementNS('http://www.w3.org/2000/svg','title');
+          const dstr = new Date(p.t*1000).toLocaleDateString('ru-RU');
+          title.textContent = `${s.store}: ${p.y.toFixed(0)} ₽ (${dstr})`;
+          c.appendChild(title);
+        });
+        
+        // legend item
+        const item = document.createElement('span');
+        item.style.display='inline-flex';
+        item.style.alignItems='center';
+        item.style.marginRight='12px';
+        item.innerHTML = `<i style="display:inline-block;width:12px;height:12px;background:${color};margin-right:6px;border-radius:2px;"></i>${s.store}`;
+        legend.appendChild(item);
+      });
+    }
+  </script>
+  <style>
+    .card{padding:16px;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    .header-inner{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+    .legend{margin:0 0 8px 0}
+  </style>
+</body>
+</html>
+
+
+
+
+

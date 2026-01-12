@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_name }} · Магазины</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>Магазины</strong>
+      <nav>
+        <a href="/">Главная</a>
+        <a href="/stores/view">Магазины</a>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container grid cols-2">
+    <section class="card actions" style="justify-content:space-between;">
+      <form method="post" action="/stores/create-primary">
+        <button type="submit">Добавить мой магазин</button>
+      </form>
+    </section>
+    <section class="card stack">
+      <h2>Добавить магазин</h2>
+      <form method="post" action="/stores" class="stack">
+        <label>Slug <input name="slug" required /></label>
+        <label>Название <input name="name" required /></label>
+        <label>Base URL <input name="base_url" /></label>
+        <label>CSS селектор цены <input name="price_selector" placeholder="например .price" /></label>
+        <div class="actions"><button type="submit">Добавить</button></div>
+      </form>
+    </section>
+    <section class="card">
+      <h2>Список</h2>
+      <table>
+        <thead>
+          <tr><th>Slug</th><th>Название</th><th>Base URL</th><th>Селектор</th><th></th><th></th><th></th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for s in items %}
+          <tr>
+            <td>{{ s.slug }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.base_url }}</td>
+            <td>{{ s.price_selector or '' }}</td>
+            <td>
+              {% if primary and primary.id == s.id %}
+                <span class="badge">Мой магазин</span>
+              {% else %}
+                <form method="post" action="/stores/{{ s.id }}/make-primary">
+                  <button type="submit">Это мой магазин</button>
+                </form>
+              {% endif %}
+            </td>
+            <td>
+              {% if primary and primary.id == s.id %}
+                <form method="post" action="/stores/unset-primary">
+                  <button type="submit">Сбросить выбор</button>
+                </form>
+              {% else %}
+                <form method="post" action="/stores/{{ s.id }}/delete" onsubmit="return confirm('Удалить магазин и связанные товары?');">
+                  <button type="submit">Удалить</button>
+                </form>
+              {% endif %}
+            </td>
+            <td>
+              <a class="button" href="/stores/{{ s.id }}/auto-import">Авто-импорт</a>
+            </td>
+            <td>
+              <form method="post" action="/stores/{{ s.id }}/delete-products" onsubmit="return confirm('Удалить все товары этого магазина?');">
+                <button type="submit">Удалить товары магазина</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/static/main.js"></script>
+</body>
+</html>
+

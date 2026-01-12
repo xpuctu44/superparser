@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>История цены · {{ product.title }}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>История цены</strong>
+      <nav>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card">
+      <h2>{{ product.title }}</h2>
+      <svg id="chart" width="800" height="320" style="max-width:100%;"></svg>
+    </section>
+  </main>
+  <script>
+    const points = {{ points | tojson }};
+    const svg = document.getElementById('chart');
+    const W = svg.clientWidth || 800;
+    const H = svg.clientHeight || 320;
+    const pad = 40;
+    
+    if (!points.length) {
+      svg.innerHTML = '<text x="16" y="24" fill="#666" font-size="14">Нет данных</text>';
+    } else {
+      const xs = points.map(p => p.t);
+      const ys = points.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const rangeX = maxX - minX || 1;
+      const rangeY = maxY - minY || 1;
+      
+      const sx = (x) => pad + ((x - minX) / rangeX) * (W - pad*2);
+      const sy = (y) => (H - pad) - ((y - minY) / rangeY) * (H - pad*2);
+      
+      // Create gradient
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      gradient.setAttribute('id', 'lineGradient');
+      gradient.setAttribute('x1', '0%');
+      gradient.setAttribute('y1', '0%');
+      gradient.setAttribute('x2', '100%');
+      gradient.setAttribute('y2', '0%');
+      
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('stop-color', '#4CAF50');
+      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('stop-color', '#2196F3');
+      
+      gradient.appendChild(stop1);
+      gradient.appendChild(stop2);
+      defs.appendChild(gradient);
+      svg.appendChild(defs);
+      
+      // Background
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bg.setAttribute('x', '0');
+      bg.setAttribute('y', '0');
+      bg.setAttribute('width', W);
+      bg.setAttribute('height', H);
+      bg.setAttribute('fill', '#fafafa');
+      bg.setAttribute('rx', '8');
+      svg.appendChild(bg);
+      
+      // Grid lines
+      const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      gridGroup.setAttribute('stroke', '#e0e0e0');
+      gridGroup.setAttribute('stroke-width', '1');
+      gridGroup.setAttribute('opacity', '0.5');
+      
+      // Vertical grid lines
+      for (let i = 0; i <= 4; i++) {
+        const x = pad + (i / 4) * (W - pad*2);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', pad);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', H - pad);
+        gridGroup.appendChild(line);
+      }
+      
+      // Horizontal grid lines
+      for (let i = 0; i <= 4; i++) {
+        const y = pad + (i / 4) * (H - pad*2);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', pad);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', W - pad);
+        line.setAttribute('y2', y);
+        gridGroup.appendChild(line);
+      }
+      
+      svg.appendChild(gridGroup);
+      
+      // Area under curve
+      const areaPath = points.map((p, i) => {
+        const x = sx(p.t);
+        const y = sy(p.y);
+        return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+      }).join(' ') + ` L${sx(points[points.length-1].t)},${H-pad} L${sx(points[0].t)},${H-pad} Z`;
+      
+      const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      area.setAttribute('d', areaPath);
+      area.setAttribute('fill', 'url(#lineGradient)');
+      area.setAttribute('opacity', '0.1');
+      svg.appendChild(area);
+      
+      // Main line
+      const linePath = points.map((p, i) => {
+        const x = sx(p.t);
+        const y = sy(p.y);
+        return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+      }).join(' ');
+      
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      line.setAttribute('d', linePath);
+      line.setAttribute('stroke', 'url(#lineGradient)');
+      line.setAttribute('stroke-width', '3');
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke-linecap', 'round');
+      line.setAttribute('stroke-linejoin', 'round');
+      
+      // Animate line drawing
+      const pathLength = line.getTotalLength();
+      line.style.strokeDasharray = pathLength;
+      line.style.strokeDashoffset = pathLength;
+      line.style.transition = 'stroke-dashoffset 2s ease-in-out';
+      svg.appendChild(line);
+      
+      // Animate the line drawing
+      setTimeout(() => {
+        line.style.strokeDashoffset = '0';
+      }, 100);
+      
+      // Data points
+      points.forEach((p, i) => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', sx(p.t));
+        circle.setAttribute('cy', sy(p.y));
+        circle.setAttribute('r', '4');
+        circle.setAttribute('fill', '#2196F3');
+        circle.setAttribute('stroke', '#fff');
+        circle.setAttribute('stroke-width', '2');
+        circle.style.opacity = '0';
+        circle.style.transition = 'opacity 0.3s ease-in-out';
+        svg.appendChild(circle);
+        
+        // Animate points appearance
+        setTimeout(() => {
+          circle.style.opacity = '1';
+        }, 2000 + i * 50);
+        
+        // Tooltip
+        const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        const date = new Date(p.t * 1000).toLocaleDateString('ru-RU');
+        tooltip.textContent = `${date}: ${p.y.toFixed(0)} ₽`;
+        circle.appendChild(tooltip);
+      });
+      
+      // Y-axis labels
+      const yLabels = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      yLabels.setAttribute('fill', '#666');
+      yLabels.setAttribute('font-size', '12');
+      yLabels.setAttribute('font-family', 'Arial, sans-serif');
+      
+      for (let i = 0; i <= 4; i++) {
+        const value = minY + (i / 4) * rangeY;
+        const y = pad + (i / 4) * (H - pad*2);
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', pad - 8);
+        text.setAttribute('y', y + 4);
+        text.setAttribute('text-anchor', 'end');
+        text.textContent = value.toFixed(0);
+        yLabels.appendChild(text);
+      }
+      svg.appendChild(yLabels);
+      
+      // X-axis labels (dates)
+      const xLabels = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      xLabels.setAttribute('fill', '#666');
+      xLabels.setAttribute('font-size', '12');
+      xLabels.setAttribute('font-family', 'Arial, sans-serif');
+      
+      const step = Math.max(1, Math.floor(points.length / 5));
+      for (let i = 0; i < points.length; i += step) {
+        const p = points[i];
+        const x = sx(p.t);
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', H - pad + 20);
+        text.setAttribute('text-anchor', 'middle');
+        text.textContent = new Date(p.t * 1000).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' });
+        xLabels.appendChild(text);
+      }
+      svg.appendChild(xLabels);
+    }
+  </script>
+</body>
+<style>
+  .card{padding:16px;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+  .container{max-width:1100px;margin:0 auto;padding:16px}
+  .header-inner{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+  #chart{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+</style>
+</html>
+
+

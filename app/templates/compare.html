@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_name }} · Сравнение</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>Сравнение цен</strong>
+      <nav>
+        <a href="/">Главная</a>
+        <a href="/stores/view">Магазины</a>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container grid">
+    {% if updated is not none %}
+    <section class="card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+      <strong style="color: var(--success);">✓ Обновлено цен: {{ updated }}</strong>
+    </section>
+    {% endif %}
+    {% if error %}
+    <section class="card" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);">
+      <strong style="color: var(--danger);">✗ Ошибка при обновлении цен. Попробуйте позже.</strong>
+    </section>
+    {% endif %}
+    <section class="card actions" style="justify-content:space-between;">
+      <form method="post" action="/compare/refresh" id="refreshForm">
+        <button type="submit" id="refreshButton">Обновить цены сейчас</button>
+      </form>
+    </section>
+    <script>
+      // Simple handler for refresh form
+      document.getElementById('refreshForm')?.addEventListener('submit', function(e) {
+        const button = document.getElementById('refreshButton');
+        if (button) {
+          button.innerHTML = '<span class="loading"></span> Загрузка...';
+          button.disabled = true;
+        }
+      });
+    </script>
+    <section>
+      <table>
+        <thead>
+          <tr>
+            <th>Группа</th>
+            {% for store in stores %}
+              <th>{{ store.name }}</th>
+            {% endfor %}
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group_key, row in matrix.items() %}
+          <tr>
+            <td>{{ group_key }}</td>
+            {% for store in stores %}
+              {% set cell = row.get(store.slug) %}
+              <td>
+                {% if cell %}
+                  {{ '%.2f'|format(cell.price) }} {{ cell.currency }}<br/>
+                  <a href="{{ cell.url }}" target="_blank">Открыть</a>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            {% endfor %}
+            <td>
+              <a class="button" href="/compare/history?group={{ group_key | urlencode }}">История</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/static/main.js"></script>
+</body>
+</html>
+

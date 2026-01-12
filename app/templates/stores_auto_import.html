@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Авто-импорт · {{ store.name }}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>.stack{display:flex;flex-direction:column;gap:8px}.card{padding:16px;background:#fff;border-radius:8px}</style>
+  </head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>Авто-импорт · {{ store.name }}</strong>
+      <nav>
+        <a href="/stores/view">Магазины</a>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card">
+      <form class="stack" method="post" action="/stores/{{ store.id }}/auto-import">
+        <label>Список URL категорий (по одному на строку)
+          <textarea name="list_pages" rows="8" placeholder="https://example.com/catalog"></textarea>
+        </label>
+        <label>Селектор ссылок на товары
+          <input name="product_link_selector" value="a[href]" />
+        </label>
+        <label>Селектор заголовка внутри ссылки (необязательно)
+          <input name="title_selector" placeholder="например .title" />
+        </label>
+        <label>Селектор цены для этого магазина (переопределение; необязательно)
+          <input name="price_selector_override" placeholder="например .price" />
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;">
+          <input type="checkbox" name="clear_before" /> Очистить все товары этого магазина перед импортом
+        </label>
+        <div class="actions">
+          <button type="submit">Импортировать</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
+
+

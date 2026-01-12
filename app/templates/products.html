@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_name }} · Товары</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>Товары</strong>
+      <nav>
+        <a href="/">Главная</a>
+        <a href="/stores/view">Магазины</a>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card actions" style="justify-content:space-between; margin-bottom: 24px;">
+      <a class="button" href="/compare/add">Добавить товар для сравнения</a>
+    </section>
+    {% if imported is not none %}
+    <section class="card" style="background:#e9ffe9; border:1px solid #b9e6b9;">
+      <strong>Импортировано товаров: {{ imported }}</strong>
+      {% if updated is not none %}
+        <span style="margin-left:8px;">Обновлено: {{ updated }}</span>
+      {% endif %}
+    </section>
+    {% endif %}
+    <section class="card" style="display:none;">
+      <h2>Пакетный импорт</h2>
+      <form method="post" action="/products/bulk" class="stack">
+        <label>Магазин
+          <select name="store_id" required>
+            {% for s in stores %}
+            <option value="{{ s.id }}">{{ s.name }} ({{ s.slug }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Список строк
+          <textarea name="lines" rows="10" placeholder="Форматы:\nгруппа | название | url\nгруппа | url\nurl"></textarea>
+        </label>
+        <div class="actions"><button type="submit">Импортировать</button></div>
+      </form>
+      <p style="opacity:.7; font-size:12px;">Подсказка: группа используется как ключ сравнения. Рекомендуем формат «модель объём цвет».</p>
+    </section>
+    <section>
+      <h2>Список товаров</h2>
+      <div class="products-list">
+        {% for group_key, group_data in groups.items() %}
+        <div class="product-group-card card" data-group="{{ group_key }}" style="cursor: pointer; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="margin: 0 0 8px 0; font-size: 20px;">{{ group_key }}</h3>
+              <p style="margin: 0; color: var(--muted); font-size: 14px;">{{ group_data.representative.title }}</p>
+              <p style="margin: 8px 0 0 0; color: var(--muted); font-size: 13px;">
+                Магазинов: {{ group_data.products|length }}
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <a href="/compare/history?group={{ group_key | urlencode }}" class="button" style="text-decoration: none;" onclick="event.stopPropagation();">История</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    
+    <!-- Modal для показа магазинов группы -->
+    <dialog id="groupModal" style="max-width: 600px; width: 90vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 id="modalGroupName" style="margin: 0;"></h2>
+        <button onclick="document.getElementById('groupModal').close()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--muted);">&times;</button>
+      </div>
+      <div id="modalContent" class="stack"></div>
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+        <button type="button" id="addStoreBtn" class="button" style="width: 100%;">+ Добавить товар в другом магазине</button>
+      </div>
+    </dialog>
+    
+    <!-- Modal для добавления товара в другом магазине -->
+    <dialog id="addStoreModal" style="max-width: 500px; width: 90vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0;">Добавить товар в магазине</h3>
+        <button onclick="document.getElementById('addStoreModal').close()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--muted);">&times;</button>
+      </div>
+      <form method="post" action="/products/add-to-group" class="stack">
+        <input type="hidden" name="group_key" id="addStoreGroupKey" />
+        <label>Магазин
+          <select name="store_id" required>
+            {% for s in stores %}
+            <option value="{{ s.id }}">{{ s.name }} ({{ s.slug }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Ссылка на товар
+          <input name="product_url" type="url" placeholder="https://..." required />
+        </label>
+        <label>Название (необязательно)
+          <input name="title" type="text" placeholder="Оставьте пустым для использования названия группы" />
+        </label>
+        <div class="actions">
+          <button type="submit">Добавить</button>
+          <button type="button" onclick="document.getElementById('addStoreModal').close()">Отмена</button>
+        </div>
+      </form>
+    </dialog>
+    
+    <script>
+      // Данные групп для модального окна
+      const groupsData = {
+        {% for group_key, group_data in groups.items() %}
+        "{{ group_key }}": [
+          {% for p in group_data.products %}
+          {
+            id: {{ p.id }},
+            store: "{{ p.store.name }}",
+            title: "{{ p.title }}",
+            url: "{{ p.product_url }}"
+          }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]{% if not loop.last %},{% endif %}
+        {% endfor %}
+      };
+      
+      let currentGroupKey = null;
+      
+      // Обработчик клика на карточку группы
+      document.querySelectorAll('.product-group-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+          // Не открывать модальное окно при клике на кнопки внутри
+          if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || e.target.closest('a') || e.target.closest('button')) {
+            return;
+          }
+          
+          const groupKey = this.dataset.group;
+          currentGroupKey = groupKey;
+          const modal = document.getElementById('groupModal');
+          const modalTitle = document.getElementById('modalGroupName');
+          const modalContent = document.getElementById('modalContent');
+          
+          modalTitle.textContent = groupKey;
+          modalContent.innerHTML = '';
+          
+          if (groupsData[groupKey]) {
+            groupsData[groupKey].forEach(product => {
+              const item = document.createElement('div');
+              item.className = 'card';
+              item.style.padding = '16px';
+              item.style.marginBottom = '12px';
+              item.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong style="display: block; margin-bottom: 4px;">${product.store}</strong>
+                    <span style="color: var(--muted); font-size: 14px;">${product.title}</span>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <a href="${product.url}" target="_blank" class="button" style="text-decoration: none;">Открыть</a>
+                    <a href="/products/${product.id}/history" class="button" style="text-decoration: none;">История</a>
+                    <form method="post" action="/products/${product.id}/delete" onsubmit="return confirm('Удалить товар из магазина ${product.store}?');" style="display: inline;">
+                      <button type="submit" style="background: var(--danger);">Удалить</button>
+                    </form>
+                  </div>
+                </div>
+              `;
+              modalContent.appendChild(item);
+            });
+          }
+          
+          if (typeof modal.showModal === 'function') {
+            modal.showModal();
+          } else {
+            modal.style.display = 'block';
+          }
+        });
+      });
+      
+      // Обработчик кнопки "Добавить товар в другом магазине"
+      document.getElementById('addStoreBtn')?.addEventListener('click', function() {
+        if (!currentGroupKey) return;
+        
+        const addStoreModal = document.getElementById('addStoreModal');
+        const groupKeyInput = document.getElementById('addStoreGroupKey');
+        
+        if (groupKeyInput) {
+          groupKeyInput.value = currentGroupKey;
+        }
+        
+        // Закрыть текущее модальное окно
+        document.getElementById('groupModal')?.close();
+        
+        // Открыть модальное окно добавления
+        if (typeof addStoreModal.showModal === 'function') {
+          addStoreModal.showModal();
+        } else {
+          addStoreModal.style.display = 'block';
+        }
+      });
+    </script>
+  </main>
+  <script src="/static/main.js"></script>
+</body>
+</html>
+

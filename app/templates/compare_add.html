@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Добавить товар для сравнения</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <strong>Добавить товар для сравнения</strong>
+      <nav>
+        <a href="/">Главная</a>
+        <a href="/stores/view">Магазины</a>
+        <a href="/products">Товары</a>
+        <a href="/compare">Сравнение</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card">
+      <form method="post" action="/compare/add" class="stack">
+        <label>Группа
+          <div style="display: flex; gap: 8px; align-items: flex-end;">
+            <div style="flex: 1;">
+              <input name="group_key" id="group_key_input" placeholder="например iPhone 16 Pro Max 256GB" required />
+            </div>
+            <button type="button" id="openGroupsBtn" class="button">Выбрать из существующих</button>
+          </div>
+        </label>
+        <div class="stack">
+          {% for s in stores %}
+          <label>{{ s.name }} ({{ s.slug }}) — ссылка на товар
+            <input name="url_{{ s.id }}" type="url" placeholder="https://..." />
+          </label>
+          {% endfor %}
+        </div>
+        <div class="actions"><button type="submit">Добавить</button></div>
+      </form>
+      
+      <!-- Модальное окно со списком групп -->
+      <dialog id="groupsModal">
+        <form method="dialog">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">Выбрать существующую группу</h3>
+            <button type="button" onclick="document.getElementById('groupsModal').close()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--muted);">&times;</button>
+          </div>
+          {% if existing_groups %}
+          <div style="max-height: 400px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr><th>Группа</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for g in existing_groups %}
+                <tr>
+                  <td>{{ g }}</td>
+                  <td><button type="button" class="button" data-group="{{ g }}" onclick="selectGroup({{ g | tojson }})">Выбрать</button></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p style="color: var(--muted); text-align: center; padding: 20px;">Нет существующих групп</p>
+          {% endif %}
+          <div style="margin-top: 20px; text-align: right;">
+            <button type="button" class="button" onclick="document.getElementById('groupsModal').close()">Отмена</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+  </main>
+  <script>
+    const groupInput = document.getElementById('group_key_input');
+    const openGroupsBtn = document.getElementById('openGroupsBtn');
+    const groupsModal = document.getElementById('groupsModal');
+    
+    function selectGroup(groupKey) {
+      groupInput.value = groupKey;
+      groupsModal.close();
+    }
+    
+    openGroupsBtn?.addEventListener('click', () => {
+      if (typeof groupsModal.showModal === 'function') {
+        groupsModal.showModal();
+      } else {
+        groupsModal.style.display = 'block';
+      }
+    });
+  </script>
+  <script src="/static/main.js"></script>
+</body>
+</html>
+
+
+
